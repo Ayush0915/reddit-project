@@ -1,0 +1,8 @@
+src/reddit_cred.json
+src/__pycache__
+project.log
+src/aws_cred.json
+**/__pycache__/
+todo.txt
+post-producer/.env
+**.env

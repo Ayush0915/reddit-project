@@ -1,0 +1,71 @@
+version: "3.9"
+
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    ports:
+      - "5672:5672" 
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: password
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  mongo:
+    image: mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+  mongo-express:
+    image: mongo-express
+    restart: always
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongo
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: true
+      ME_CONFIG_BASICAUTH: false
+    depends_on:
+      - mongo
+  reddit-producer:
+    build: ./reddit-producer
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+  model-server:
+    build: ./model-server
+    ports:
+      - "8001:8001"
+  reddit-consumer:
+    build: ./reddit-consumer
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+  sentiment-dashboard-api:
+    build: ./api
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mongo
+    environment:
+      - MONGODB_URI=mongodb://mongo:27017
+    restart: unless-stopped
+  streamlit-dashboard:
+    build: ./streamlit-app
+    ports:
+      - "8501:8501"
+    depends_on:
+      - sentiment-dashboard-api
+    environment:
+      - API_BASE_URL=http://sentiment-dashboard-api:8000
+    restart: unless-stopped
+
+volumes:
+  rabbitmq_data:
+  mongo_data:
